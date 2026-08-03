@@ -1,0 +1,11 @@
+doc_id,file_path,title,source_url,retrieved_at,document_version,license_or_permission
+noi-quy-chung,data/ussh_library/noi-quy-chung.md,Nội quy thư viện (Nội quy chung),local_pdf/11717.pdf,2026-08-03,2026.1,public-page
+phong-doc-cs1,data/ussh_library/phong-doc-cs1.md,Nội quy phòng đọc (Cơ sở 1 Đinh Tiên Hoàng),local_pdf/11717.pdf,2026-08-03,2026.1,public-page
+phong-doc-cs2,data/ussh_library/phong-doc-cs2.md,Nội quy phòng đọc (Cơ sở 2 Thủ Đức),local_pdf/11717.pdf,2026-08-03,2026.1,public-page
+phong-muon-cs1,data/ussh_library/phong-muon-cs1.md,Nội quy phòng mượn (Cơ sở 1 Đinh Tiên Hoàng),local_pdf/11717.pdf,2026-08-03,2026.1,public-page
+phong-muon-cs2,data/ussh_library/phong-muon-cs2.md,Nội quy phòng mượn (Cơ sở 2 Thủ Đức),local_pdf/11717.pdf,2026-08-03,2026.1,public-page
+phong-tap-chi,data/ussh_library/phong-tap-chi.md,Nội quy phòng tạp chí,local_pdf/11717.pdf,2026-08-03,2026.1,public-page
+phong-tra-cuu-du-lieu,data/ussh_library/phong-tra-cuu-du-lieu.md,Nội quy phòng tra cứu dữ liệu,local_pdf/11717.pdf,2026-08-03,2026.1,public-page
+phong-tra-cuu-da-phuong-tien,data/ussh_library/phong-tra-cuu-da-phuong-tien.md,Nội quy phòng tra cứu đa phương tiện,local_pdf/11717.pdf,2026-08-03,2026.1,public-page
+phong-doc-han-quoc,data/ussh_library/phong-doc-han-quoc.md,Nội quy phòng đọc tham khảo Hàn Quốc (Window on Korea),local_pdf/11717.pdf,2026-08-03,2026.1,public-page
+phong-thao-luan-nhom,data/ussh_library/phong-thao-luan-nhom.md,Nội quy phòng thảo luận nhóm,local_pdf/11717.pdf,2026-08-03,2026.1,public-page
