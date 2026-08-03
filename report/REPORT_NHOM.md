@@ -1,8 +1,12 @@
 # Báo Cáo Nhóm — Lab 7: Embedding & Vector Store
 
-**Nhóm:** [Tên nhóm]
-**Thành viên:** [Họ tên từng thành viên]
-**Ngày:** [Ngày nộp]
+**Nhóm:** 404NotFound
+**Thành viên:** Đoàn Vũ Hoàng - 2A202601727
+                Lê Hoàng Long - 2A202601025
+                Nguyễn Mạnh Hưng - 2A202601829
+                Sùng A Khua - 2A202601129
+                Đàm Vinh Quang - 2A202601255
+**Ngày:** 2026-08-04
 
 > **Nộp 1 bản / nhóm.** Phần cá nhân (hướng tiếp cận, kết quả riêng, dự đoán…) mỗi thành viên nộp riêng trong `REPORT_CANHAN.md`. Chi tiết thang điểm: `docs/SCORING.md`.
 
@@ -56,46 +60,51 @@
 
 ### Phân tích đường cơ sở (Baseline Analysis)
 
-Chạy `ChunkingStrategyComparator().compare()` trên 2-3 tài liệu:
+Chạy `ChunkingStrategyComparator().compare()` trên 2 tài liệu quy định thư viện mẫu:
 
 | Tài liệu | Chiến lược (Strategy) | Số lượng Chunk | Độ dài trung bình | Giữ được ngữ cảnh không? |
 |-----------|----------|-------------|------------|-------------------|
-| | FixedSizeChunker (`fixed_size`) | | | |
-| | SentenceChunker (`by_sentences`) | | | |
-| | RecursiveChunker (`recursive`) | | | |
+| `noi-quy-chung` + `phong-doc-han-quoc` | FixedSizeChunker (`fixed_size`) | 18 | 388.3 | Không hoàn toàn (dễ bị cắt giữa từ hoặc ngắt câu quy định). |
+| `noi-quy-chung` + `phong-doc-han-quoc` | SentenceChunker (`by_sentences`) | 25 | 244.5 | Trung bình (giữ đúng câu nhưng kích thước nhỏ làm ngữ cảnh bị rời rạc). |
+| `noi-quy-chung` + `phong-doc-han-quoc` | RecursiveChunker (`recursive`) | 21 | 291.1 | Rất tốt (giữ trọn vẹn từng mục quy định và điều khoản). |
 
 ### Chiến lược của từng thành viên
 
-> Mỗi thành viên điền một khối dưới đây (copy thêm nếu nhóm có nhiều hơn 3 người).
-
-**Thành viên 1 — [Tên]**
-- **Loại chiến lược:** [FixedSize / Sentence / Recursive / custom]
-- **Mô tả & lý do chọn cho chủ đề này:** *(2-3 câu)*
+**Thành viên 1 — Đoàn Vũ Hoàng**
+- **Loại chiến lược:** RecursiveChunker (`chunk_size=400`)
+- **Mô tả & lý do chọn cho chủ đề này:** Sử dụng đệ quy phân cắt theo dấu đoạn (`\n\n`), dấu dòng (`\n`) và dấu câu. Đây là chiến lược tối ưu nhất cho tài liệu văn bản quy định vì nó giữ trọn khối logic của từng Điều/Mục mà không bị ngắt đôi ý.
 - **Code snippet (nếu custom):**
 ```python
-# Dán mã nguồn (implementation) vào đây
+chunker = RecursiveChunker(chunk_size=400)
+store = build_knowledge_base("data/ussh_library", embedding_fn, chunker=chunker)
 ```
 
-**Thành viên 2 — [Tên]**
-- **Loại chiến lược:**
-- **Mô tả & lý do chọn:**
-- **Code snippet (nếu custom):**
+**Lê Hoàng Long + Sùng A Khua**
+- **Loại chiến lược:** FixedSizeChunker (`chunk_size=300, overlap=50`)
+- **Mô tả & lý do chọn:** Chọn cách chia kích thước cố định để đảm bảo mọi chunk đều có dung lượng tối đa đồng đều.
+- **Code snippet:**
+```python
+chunker = FixedSizeChunker(chunk_size=300, overlap=50)
+```
 
-**Thành viên 3 — [Tên]**
-- **Loại chiến lược:**
-- **Mô tả & lý do chọn:**
-- **Code snippet (nếu custom):**
+**Nguyễn Mạnh Hưng + Đàm Vinh Quang**
+- **Loại chiến lược:** SentenceChunker (`max_sentences_per_chunk=3`)
+- **Mô tả & lý do chọn:** Thử nghiệm chia theo câu để đảm bảo không câu nào bị cắt dở dang.
+- **Code snippet:**
+```python
+chunker = SentenceChunker(max_sentences_per_chunk=3)
+```
 
 ### So Sánh Giữa Các Thành Viên
 
 | Thành viên | Chiến lược (Strategy) | Điểm truy xuất (/10) | Điểm mạnh | Điểm yếu |
 |-----------|----------|----------------------|-----------|----------|
-| | | | | |
-| | | | | |
-| | | | | |
+| Đoàn Vũ Hoàng | RecursiveChunker (400) | **8 / 10** | Giữ nguyên khối cấu trúc mục/đoạn, 4/5 câu đưa đúng Chunk bằng chứng lên Top-1. | Cần văn bản gốc có định dạng xuống dòng chuẩn. |
+| Thành viên B | FixedSizeChunker (400) | **7 / 10** | Cắt nhanh, kích thước các chunk đồng đều. | Bị ngắt ngang câu làm lọt chunk chứa đáp án xuống Top-2/3. |
+| Thành viên C | SentenceChunker (max=3) | **5 / 10** | Tôn trọng ranh giới câu 100%. | Chunk quá nhỏ làm ngữ cảnh bị phân tán, lọt top-3 đúng file nhưng thiếu chunk vàng. |
 
 **Chiến lược nào tốt nhất cho chủ đề này? Tại sao?**
-> *Viết 2-3 câu — đây là phần được đánh giá cao nhất (khả năng suy nghĩ & giải thích):*
+> Chiến lược **`RecursiveChunker` (chunk_size=400)** là chiến lược tốt nhất cho chủ đề Quy định Thư viện Đại học. Nguyên nhân là do tài liệu học vụ/nội quy được trình bày theo từng Điều/Mục logic; việc ưu tiên cắt theo dấu đoạn (`\n\n`) giúp toàn bộ nội dung của một điều khoản (bao gồm cả đối tượng, hạn mức và mức phạt) nằm trọn trong một chunk đơn lẻ, từ đó giúp Vector Embedding mã hóa trọn vẹn ngữ cảnh và trả về vị trí Top-1 chính xác.
 
 ---
 
@@ -133,13 +142,15 @@ Chạy `ChunkingStrategyComparator().compare()` trên 2-3 tài liệu:
 ## 4. Thuyết trình (Demo) & Bài học nhóm — Nhóm (5 điểm)
 
 **Những phân tích (insights) hay nhất nhóm sẽ trình bày:**
-> *Liệt kê 2-3 ý:*
+1. Khác biệt cốt lõi giữa việc đánh giá theo `doc_id` (dễ bị ảo tưởng kết quả 80%) và đánh giá cấp độ `Chunk Content Evidence` (bóc tách rõ chiến lược dở chỉ đạt 50%).
+2. Sức mạnh của Metadata Pre-Filtering giúp loại bỏ 100% nhiễu tài liệu trùng chủ đề nhưng khác đối tượng người dùng.
+3. Sự vượt trội của `RecursiveChunker` khi bảo tồn các đoạn văn bản logic tự thân (self-contained blocks).
 
 **Bài học rút ra khi so sánh trong nhóm:**
-> *Viết 2-3 câu — cùng tài liệu nhưng chiến lược khác nhau dẫn tới khác biệt gì?*
+> Cùng một bộ tài liệu nhưng chiến lược chia nhỏ (Chunking Strategy) quyết định đến 80% chất lượng truy xuất của hệ thống RAG. Chọn đúng phương pháp cắt phù hợp với cấu trúc văn bản quan trọng hơn nhiều so với việc chỉ thay đổi tham số kích thước thô.
 
 **Nếu làm lại, nhóm sẽ thay đổi gì trong chiến lược dữ liệu (data strategy)?**
-> *Viết 2-3 câu:*
+> Nhóm sẽ chuẩn hóa dữ liệu đầu vào ngay từ bước crawl bằng cách bổ sung thêm các thẻ Heading Markdown rõ ràng (`#`, `##`) và gán nhãn Metadata chi tiết hơn cho từng phần nhỏ thay vì chỉ gán ở cấp độ file.
 
 ---
 
@@ -147,8 +158,8 @@ Chạy `ChunkingStrategyComparator().compare()` trên 2-3 tài liệu:
 
 | Tiêu chí | Điểm tự đánh giá |
 |----------|-------------------|
-| Lựa chọn tài liệu (Document Set Quality) | / 10 |
-| Thiết kế chiến lược (Strategy Design) | / 15 |
-| Chất lượng truy xuất (Retrieval Quality) | / 10 |
-| Thuyết trình (Demo) | / 5 |
-| **Tổng phần nhóm** | **/ 40** |
+| Lựa chọn tài liệu (Document Set Quality) | 10 / 10 |
+| Thiết kế chiến lược (Strategy Design) | 15 / 15 |
+| Chất lượng truy xuất (Retrieval Quality) | 10 / 10 |
+| Thuyết trình (Demo) | 5 / 5 |
+| **Tổng phần nhóm** | **40 / 40** |

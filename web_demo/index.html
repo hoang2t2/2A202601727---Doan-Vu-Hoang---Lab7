@@ -1,0 +1,811 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>RAG Demo — Nhóm 404NotFound</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #0d1117; --bg2: #161b22; --bg3: #21262d;
+      --border: #30363d; --text: #e6edf3; --text-muted: #8b949e;
+      --accent: #58a6ff; --accent2: #bc8cff;
+      --green: #3fb950; --yellow: #d29922; --red: #f85149;
+      --recursive: #58a6ff; --fixed: #f0883e; --sentence: #bc8cff;
+      --radius: 12px; --radius-sm: 8px;
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    body { background: var(--bg); color: var(--text); font-family: 'Inter', sans-serif; min-height: 100vh; line-height: 1.6; }
+
+    /* HEADER */
+    header { background: linear-gradient(135deg,#0d1117,#161b22); border-bottom: 1px solid var(--border); padding: 0 2rem; position: sticky; top: 0; z-index: 100; backdrop-filter: blur(10px); }
+    nav { max-width: 1200px; margin: 0 auto; display: flex; align-items: center; justify-content: space-between; height: 60px; }
+    .nav-brand { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 1rem; }
+    .nav-brand .badge { background: linear-gradient(135deg,#58a6ff,#bc8cff); color:#fff; font-size:.7rem; font-weight:700; padding:2px 8px; border-radius:20px; }
+    .nav-links { display: flex; gap: 0.5rem; }
+    .nav-links a { color:var(--text-muted); text-decoration:none; font-size:.875rem; padding:6px 12px; border-radius:var(--radius-sm); transition:.2s; }
+    .nav-links a:hover { color:var(--text); background:var(--bg3); }
+
+    /* HERO */
+    .hero { max-width:1200px; margin:0 auto; padding:4rem 2rem 2rem; text-align:center; }
+    .hero-tag { display:inline-flex; align-items:center; gap:6px; background:rgba(88,166,255,.1); border:1px solid rgba(88,166,255,.3); color:var(--accent); font-size:.8rem; font-weight:600; padding:5px 14px; border-radius:20px; margin-bottom:1.2rem; }
+    .hero h1 { font-size:clamp(2rem,5vw,3.2rem); font-weight:800; background:linear-gradient(135deg,#e6edf3 30%,#58a6ff 70%,#bc8cff 100%); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; line-height:1.2; margin-bottom:1rem; }
+    .hero p { color:var(--text-muted); font-size:1.1rem; max-width:600px; margin:0 auto 2rem; }
+    .hero-stats { display:flex; justify-content:center; gap:2rem; flex-wrap:wrap; }
+    .stat-card { background:var(--bg2); border:1px solid var(--border); border-radius:var(--radius); padding:1rem 1.5rem; text-align:center; min-width:120px; }
+    .stat-card .value { font-size:1.8rem; font-weight:800; background:linear-gradient(135deg,#58a6ff,#bc8cff); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; }
+    .stat-card .label { color:var(--text-muted); font-size:.78rem; margin-top:2px; }
+
+    /* MAIN */
+    main { max-width:1200px; margin:0 auto; padding:2rem; }
+    section { margin-bottom:3rem; }
+    .section-title { font-size:1.4rem; font-weight:700; margin-bottom:.4rem; display:flex; align-items:center; gap:8px; }
+    .section-desc { color:var(--text-muted); font-size:.9rem; margin-bottom:1.5rem; }
+
+    /* SCOREBOARD */
+    .score-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:1rem; margin-bottom:1.5rem; }
+    .score-card { background:var(--bg2); border:1px solid var(--border); border-radius:var(--radius); padding:1.2rem; position:relative; overflow:hidden; transition:.2s; }
+    .score-card:hover { transform:translateY(-2px); box-shadow:0 8px 24px rgba(0,0,0,.3); }
+    .score-card::before { content:''; position:absolute; top:0;left:0;right:0; height:3px; }
+    .score-card.recursive::before { background:var(--recursive); }
+    .score-card.fixed::before     { background:var(--fixed); }
+    .score-card.sentence::before  { background:var(--sentence); }
+    .score-card.best { border-color:var(--recursive); }
+    .best-badge { position:absolute; top:12px;right:12px; background:linear-gradient(135deg,#58a6ff,#3fb950); font-size:.65rem; font-weight:700; padding:2px 8px; border-radius:10px; color:#fff; }
+    .strategy-name { font-size:.8rem; font-weight:600; text-transform:uppercase; letter-spacing:.05em; margin-bottom:.5rem; }
+    .strategy-name.recursive { color:var(--recursive); }
+    .strategy-name.fixed     { color:var(--fixed); }
+    .strategy-name.sentence  { color:var(--sentence); }
+    .score-big { font-size:2.8rem; font-weight:800; line-height:1; margin:.3rem 0; }
+    .score-big.recursive { color:var(--recursive); }
+    .score-big.fixed     { color:var(--fixed); }
+    .score-big.sentence  { color:var(--sentence); }
+    .score-meta { display:flex; flex-direction:column; gap:4px; margin-top:.8rem; }
+    .score-meta-row { display:flex; justify-content:space-between; font-size:.8rem; }
+    .score-meta-row .k { color:var(--text-muted); }
+    .score-meta-row .v { font-weight:600; }
+    .progress-bar-wrap { margin-top:.8rem; }
+    .progress-bar-track { background:var(--bg3); border-radius:4px; height:6px; overflow:hidden; }
+    .progress-bar-fill { height:100%; border-radius:4px; transition:width 1s cubic-bezier(.4,0,.2,1); }
+    .progress-bar-fill.recursive { background:linear-gradient(90deg,#58a6ff,#3fb950); }
+    .progress-bar-fill.fixed     { background:linear-gradient(90deg,#f0883e,#d29922); }
+    .progress-bar-fill.sentence  { background:linear-gradient(90deg,#bc8cff,#f85149); }
+
+    /* TABS */
+    .tab-group { display:flex; gap:6px; margin-bottom:1.2rem; background:var(--bg2); padding:5px; border-radius:var(--radius); border:1px solid var(--border); width:fit-content; }
+    .tab-btn { padding:7px 18px; border:none; border-radius:var(--radius-sm); font-size:.85rem; font-weight:600; font-family:'Inter',sans-serif; cursor:pointer; transition:.2s; background:transparent; color:var(--text-muted); }
+    .tab-btn.active-recursive { background:rgba(88,166,255,.15); color:var(--recursive); }
+    .tab-btn.active-fixed     { background:rgba(240,136,62,.15); color:var(--fixed); }
+    .tab-btn.active-sentence  { background:rgba(188,140,255,.15); color:var(--sentence); }
+    .tab-btn:hover:not([class*="active"]) { background:var(--bg3); color:var(--text); }
+    .tab-panel { display:none; }
+    .tab-panel.active { display:block; }
+
+    /* TABLE */
+    .table-wrap { background:var(--bg2); border:1px solid var(--border); border-radius:var(--radius); overflow:auto; }
+    .bench-table { width:100%; border-collapse:collapse; }
+    .bench-table th, .bench-table td { padding:10px 14px; text-align:left; font-size:.85rem; border-bottom:1px solid var(--border); }
+    .bench-table th { background:var(--bg3); font-weight:600; color:var(--text-muted); font-size:.78rem; text-transform:uppercase; letter-spacing:.05em; }
+    .bench-table tr:last-child td { border-bottom:none; }
+    .bench-table tr:hover td { background:rgba(255,255,255,.02); }
+
+    /* BADGES */
+    .score-pill { display:inline-flex; align-items:center; gap:4px; font-weight:700; font-size:.82rem; padding:3px 10px; border-radius:12px; }
+    .score-pill.s2 { background:rgba(63,185,80,.15); color:var(--green); }
+    .score-pill.s1 { background:rgba(210,153,34,.15); color:var(--yellow); }
+    .score-pill.s0 { background:rgba(248,81,73,.15); color:var(--red); }
+    .rank-badge { font-family:'JetBrains Mono',monospace; font-size:.78rem; font-weight:600; padding:2px 8px; border-radius:6px; }
+    .rank-badge.top1 { background:rgba(63,185,80,.15); color:var(--green); }
+    .rank-badge.top2 { background:rgba(210,153,34,.15); color:var(--yellow); }
+    .rank-badge.top3 { background:rgba(88,166,255,.15); color:var(--accent); }
+    .rank-badge.fail { background:rgba(248,81,73,.15); color:var(--red); }
+    .doc-tag { font-family:'JetBrains Mono',monospace; font-size:.78rem; background:var(--bg3); border:1px solid var(--border); padding:2px 8px; border-radius:6px; }
+
+    /* ── TOP-3 LIVE EXPLORER ── */
+    .qe-toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-bottom: 1rem;
+      padding: 0.8rem 1.1rem;
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+    }
+    .server-status {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: .8rem;
+      font-weight: 600;
+    }
+    .status-dot {
+      width: 8px; height: 8px; border-radius: 50%;
+      animation: pulse 2s infinite;
+    }
+    .status-dot.online  { background: var(--green); }
+    .status-dot.offline { background: var(--red); animation: none; }
+    .status-dot.checking { background: var(--yellow); }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+    .strat-selector {
+      display: flex;
+      gap: 6px;
+    }
+    .strat-btn {
+      padding: 5px 12px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      font-family: 'Inter', sans-serif;
+      font-size: .78rem;
+      font-weight: 600;
+      cursor: pointer;
+      background: var(--bg3);
+      color: var(--text-muted);
+      transition: .2s;
+    }
+    .strat-btn.active { border-color: var(--accent); background: rgba(88,166,255,.12); color: var(--accent); }
+    .strat-btn:hover:not(.active) { color: var(--text); }
+    .filter-toggle {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: .8rem;
+      cursor: pointer;
+      padding: 5px 12px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      background: var(--bg3);
+      color: var(--text-muted);
+      transition: .2s;
+      user-select: none;
+    }
+    .filter-toggle.active { border-color: var(--accent2); background: rgba(188,140,255,.1); color: var(--accent2); }
+    .qe-query-buttons {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 1.2rem;
+    }
+    .qe-btn {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--text-muted);
+      font-family: 'Inter', sans-serif;
+      font-size: .82rem;
+      padding: 8px 16px;
+      cursor: pointer;
+      transition: all .2s;
+      line-height: 1.3;
+    }
+    .qe-btn:hover { border-color: var(--accent); color: var(--text); }
+    .qe-btn.active { border-color: var(--accent); background: rgba(88,166,255,.12); color: var(--accent); font-weight: 600; }
+    .qe-current-query {
+      margin-bottom: 1.2rem;
+      padding: 0.7rem 1rem;
+      background: var(--bg3);
+      border-radius: var(--radius-sm);
+      font-size: .88rem;
+      color: var(--text-muted);
+      display: none;
+    }
+    .qe-current-query.show { display: block; }
+    .qe-current-query strong { color: var(--text); }
+    /* Loading */
+    .qe-loading {
+      display: none;
+      grid-column: 1 / -1;
+      text-align: center;
+      padding: 3rem;
+      color: var(--text-muted);
+    }
+    .spinner {
+      width: 36px; height: 36px;
+      border: 3px solid var(--border);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin .8s linear infinite;
+      margin: 0 auto 1rem;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    /* Results grid */
+    .qe-results-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 1rem;
+    }
+    @media (max-width: 900px) { .qe-results-grid { grid-template-columns: 1fr; } }
+    .qe-col {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+    }
+    .qe-col-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: .75rem 1rem;
+      border-bottom: 1px solid var(--border);
+      position: relative;
+    }
+    .qe-col-header::before { content:''; position:absolute; top:0;left:0;right:0; height:3px; }
+    .qe-col-header.recursive::before { background: var(--recursive); }
+    .qe-col-header.fixed::before     { background: var(--fixed); }
+    .qe-col-header.sentence::before  { background: var(--sentence); }
+    .qe-col-title { font-weight:700; font-size:.82rem; }
+    .qe-col-title.recursive { color:var(--recursive); }
+    .qe-col-title.fixed     { color:var(--fixed); }
+    .qe-col-title.sentence  { color:var(--sentence); }
+    .qe-item { padding:.9rem 1rem; border-bottom:1px solid var(--border); }
+    .qe-item:last-child { border-bottom:none; }
+    .qe-item-header { display:flex; align-items:center; gap:6px; flex-wrap:wrap; margin-bottom:8px; }
+    .evidence-badge {
+      display:inline-flex; align-items:center; gap:4px;
+      font-size:.7rem; font-weight:700; padding:2px 8px; border-radius:10px;
+    }
+    .evidence-badge.found   { background:rgba(63,185,80,.15); color:var(--green); }
+    .evidence-badge.missing { background:rgba(248,81,73,.15); color:var(--red); }
+    .qe-score-bar-wrap { margin:6px 0 8px; }
+    .qe-score-label { display:flex; justify-content:space-between; font-size:.72rem; color:var(--text-muted); margin-bottom:3px; }
+    .qe-score-bar { background:var(--bg3); border-radius:3px; height:5px; overflow:hidden; }
+    .qe-score-fill { height:100%; border-radius:3px; }
+    .qe-score-fill.recursive { background:linear-gradient(90deg,#58a6ff,#3fb950); }
+    .qe-score-fill.fixed     { background:linear-gradient(90deg,#f0883e,#d29922); }
+    .qe-score-fill.sentence  { background:linear-gradient(90deg,#bc8cff,#f85149); }
+    .qe-content {
+      font-size:.78rem; color:var(--text-muted);
+      font-family:'JetBrains Mono',monospace; line-height:1.55;
+      background:var(--bg3); border-radius:6px; padding:8px 10px;
+      margin-bottom:8px; white-space:pre-wrap; word-break:break-word;
+      max-height:130px; overflow-y:auto;
+    }
+    .qe-meta-grid { display:grid; grid-template-columns:repeat(2,1fr); gap:4px; }
+    .qe-meta-item { background:var(--bg3); border:1px solid var(--border); border-radius:5px; padding:4px 8px; font-size:.72rem; }
+    .qe-meta-key { color:var(--accent); font-family:'JetBrains Mono',monospace; font-weight:600; display:block; margin-bottom:2px; }
+    .qe-meta-val { color:var(--text-muted); font-family:'JetBrains Mono',monospace; word-break:break-all; }
+    .qe-meta-item.span2 { grid-column: span 2; }
+    .qe-empty { grid-column:1/-1; text-align:center; padding:3rem; color:var(--text-muted); font-size:.9rem; }
+
+    /* FILTER DEMO */
+    .filter-demo-grid { display:grid; grid-template-columns:1fr 1fr; gap:1rem; }
+    .filter-panel { background:var(--bg2); border:1px solid var(--border); border-radius:var(--radius); padding:1.2rem; }
+    .filter-panel.no-filter { border-color:rgba(248,81,73,.3); }
+    .filter-panel.with-filter { border-color:rgba(63,185,80,.3); }
+    .filter-panel-header { display:flex; align-items:center; gap:8px; font-weight:700; font-size:.95rem; margin-bottom:1rem; padding-bottom:.8rem; border-bottom:1px solid var(--border); }
+    .filter-panel.no-filter .filter-panel-header   { color:var(--red); }
+    .filter-panel.with-filter .filter-panel-header { color:var(--green); }
+    .filter-tag { font-family:'JetBrains Mono',monospace; font-size:.75rem; background:rgba(88,166,255,.1); border:1px solid rgba(88,166,255,.3); color:var(--accent); padding:2px 8px; border-radius:6px; }
+    .chunk-result { background:var(--bg3); border:1px solid var(--border); border-radius:var(--radius-sm); padding:.8rem; margin-bottom:.6rem; }
+    .chunk-result:last-child { margin-bottom:0; }
+    .chunk-result.highlight { border-color:var(--green); background:rgba(63,185,80,.05); }
+    .chunk-result.noise     { border-color:rgba(248,81,73,.3); background:rgba(248,81,73,.03); }
+    .chunk-result-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:6px; flex-wrap:wrap; gap:6px; }
+    .chunk-content { font-size:.8rem; color:var(--text-muted); font-family:'JetBrains Mono',monospace; line-height:1.5; }
+
+    /* VIZ */
+    .viz-controls { display:flex; gap:1rem; align-items:center; flex-wrap:wrap; margin-bottom:1.2rem; }
+    .viz-controls label { font-size:.85rem; color:var(--text-muted); }
+    .viz-controls select, .viz-controls input[type=range] { background:var(--bg3); border:1px solid var(--border); color:var(--text); border-radius:var(--radius-sm); padding:5px 10px; font-family:'Inter',sans-serif; font-size:.85rem; outline:none; }
+    .viz-controls select:focus { border-color:var(--accent); }
+    input[type=range] { cursor:pointer; accent-color:var(--accent); width:120px; }
+    .viz-metrics { display:flex; gap:1rem; margin-bottom:1rem; flex-wrap:wrap; }
+    .viz-metric { background:var(--bg2); border:1px solid var(--border); border-radius:var(--radius-sm); padding:8px 14px; font-size:.82rem; }
+    .viz-metric .k { color:var(--text-muted); margin-right:6px; }
+    .viz-metric .v { font-weight:700; font-family:'JetBrains Mono',monospace; color:var(--accent); }
+    .chunks-display { display:flex; flex-wrap:wrap; gap:6px; max-height:300px; overflow-y:auto; padding:1rem; background:var(--bg2); border:1px solid var(--border); border-radius:var(--radius); }
+    .chunk-block { border-radius:6px; padding:4px 8px; font-size:.72rem; font-family:'JetBrains Mono',monospace; line-height:1.4; cursor:default; transition:.15s; border:1px solid transparent; }
+    .chunk-block:hover { transform:scale(1.03); border-color:var(--accent); }
+    .chunk-block.recursive { background:rgba(88,166,255,.12); color:#9ecfff; }
+    .chunk-block.fixed     { background:rgba(240,136,62,.12); color:#f9b77d; }
+    .chunk-block.sentence  { background:rgba(188,140,255,.12); color:#d8b8ff; }
+
+    /* SCHEMA */
+    .schema-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(220px,1fr)); gap:.8rem; }
+    .schema-card { background:var(--bg2); border:1px solid var(--border); border-radius:var(--radius); padding:1rem; transition:.2s; }
+    .schema-card:hover { border-color:var(--accent); }
+    .schema-field { font-family:'JetBrains Mono',monospace; font-size:.85rem; font-weight:700; color:var(--accent); margin-bottom:4px; }
+    .schema-type { display:inline-block; font-size:.7rem; background:rgba(188,140,255,.1); color:var(--accent2); padding:1px 6px; border-radius:4px; margin-bottom:6px; }
+    .schema-desc { font-size:.8rem; color:var(--text-muted); line-height:1.4; }
+    .schema-example { margin-top:6px; font-size:.75rem; font-family:'JetBrains Mono',monospace; background:var(--bg3); padding:4px 8px; border-radius:4px; color:var(--green); }
+
+    /* INSIGHT BOX */
+    .insight { background:rgba(88,166,255,.07); border:1px solid rgba(88,166,255,.25); border-radius:var(--radius); padding:1rem 1.2rem; margin-top:1rem; font-size:.88rem; line-height:1.7; color:var(--text-muted); }
+    .insight strong { color:var(--accent); }
+
+    /* SCROLL */
+    ::-webkit-scrollbar { width:6px; height:6px; }
+    ::-webkit-scrollbar-track { background:var(--bg2); }
+    ::-webkit-scrollbar-thumb { background:var(--border); border-radius:3px; }
+    ::-webkit-scrollbar-thumb:hover { background:var(--text-muted); }
+
+    footer { border-top:1px solid var(--border); padding:1.5rem 2rem; text-align:center; font-size:.82rem; color:var(--text-muted); }
+    footer a { color:var(--accent); text-decoration:none; }
+    @media (max-width:768px) { .score-grid { grid-template-columns:1fr; } .filter-demo-grid { grid-template-columns:1fr; } .nav-links { display:none; } }
+  </style>
+</head>
+<body>
+
+<header>
+  <nav>
+    <div class="nav-brand">
+      <span>🏛️ RAG Demo — Thư viện USSH</span>
+      <span class="badge">Nhóm 404NotFound</span>
+    </div>
+    <div class="nav-links">
+      <a href="#scoreboard">📊 Điểm số</a>
+      <a href="#benchmark">📋 Benchmark</a>
+      <a href="#top3">🔬 Top-3 Live</a>
+      <a href="#filter">🔍 Filter</a>
+      <a href="#visualizer">🧩 Chunk Viz</a>
+      <a href="#schema">🏷️ Metadata</a>
+    </div>
+  </nav>
+</header>
+
+<div class="hero">
+  <div class="hero-tag">⚡ Lab 7 — Embedding &amp; Vector Store</div>
+  <h1>So Sánh Chiến Lược<br />Chunking &amp; Retrieval</h1>
+  <p>Phân tích trực quan kết quả của 3 chiến lược chia chunk, đánh giá theo rubric Chunk-Level Evidence chuẩn.</p>
+  <div class="hero-stats">
+    <div class="stat-card"><div class="value">10</div><div class="label">Tài liệu Corpus</div></div>
+    <div class="stat-card"><div class="value">5</div><div class="label">Benchmark Queries</div></div>
+    <div class="stat-card"><div class="value">3</div><div class="label">Chiến lược</div></div>
+    <div class="stat-card"><div class="value">8/10</div><div class="label">Điểm cao nhất</div></div>
+  </div>
+</div>
+
+<main>
+
+<!-- ══ SCOREBOARD ══ -->
+<section id="scoreboard">
+  <div class="section-title"><span>📊</span> Bảng Điểm Tổng Hợp</div>
+  <div class="section-desc">Rubric Chunk-Level: 2đ (Top-1 có bằng chứng) · 1đ (Top-3 có nhưng không Top-1) · 0đ (không có bằng chứng)</div>
+  <div class="score-grid">
+    <div class="score-card recursive best">
+      <span class="best-badge">🏆 WINNER</span>
+      <div class="strategy-name recursive">RecursiveChunker</div>
+      <div class="score-big recursive">8</div>
+      <div style="color:var(--text-muted);font-size:.82rem;margin-top:-4px;">/ 10 điểm</div>
+      <div class="progress-bar-wrap"><div class="progress-bar-track"><div class="progress-bar-fill recursive" style="width:80%"></div></div></div>
+      <div class="score-meta">
+        <div class="score-meta-row"><span class="k">Chunk size</span><span class="v" style="color:var(--recursive)">400 chars</span></div>
+        <div class="score-meta-row"><span class="k">Tổng chunks</span><span class="v">57</span></div>
+        <div class="score-meta-row"><span class="k">Avg length</span><span class="v">291.1 chars</span></div>
+        <div class="score-meta-row"><span class="k">Top-1 hits</span><span class="v" style="color:var(--green)">4 câu ✓</span></div>
+        <div class="score-meta-row"><span class="k">Failures</span><span class="v" style="color:var(--red)">1 câu ✗</span></div>
+      </div>
+    </div>
+    <div class="score-card fixed">
+      <div class="strategy-name fixed">FixedSizeChunker</div>
+      <div class="score-big fixed">7</div>
+      <div style="color:var(--text-muted);font-size:.82rem;margin-top:-4px;">/ 10 điểm</div>
+      <div class="progress-bar-wrap"><div class="progress-bar-track"><div class="progress-bar-fill fixed" style="width:70%"></div></div></div>
+      <div class="score-meta">
+        <div class="score-meta-row"><span class="k">Chunk size</span><span class="v" style="color:var(--fixed)">400 + overlap 50</span></div>
+        <div class="score-meta-row"><span class="k">Tổng chunks</span><span class="v">46</span></div>
+        <div class="score-meta-row"><span class="k">Avg length</span><span class="v">388.3 chars</span></div>
+        <div class="score-meta-row"><span class="k">Top-1 hits</span><span class="v" style="color:var(--green)">3 câu ✓</span></div>
+        <div class="score-meta-row"><span class="k">Top-2/3 hits</span><span class="v" style="color:var(--yellow)">1 câu ~</span></div>
+      </div>
+    </div>
+    <div class="score-card sentence">
+      <div class="strategy-name sentence">SentenceChunker</div>
+      <div class="score-big sentence">5</div>
+      <div style="color:var(--text-muted);font-size:.82rem;margin-top:-4px;">/ 10 điểm</div>
+      <div class="progress-bar-wrap"><div class="progress-bar-track"><div class="progress-bar-fill sentence" style="width:50%"></div></div></div>
+      <div class="score-meta">
+        <div class="score-meta-row"><span class="k">Max sentences</span><span class="v" style="color:var(--sentence)">3 câu/chunk</span></div>
+        <div class="score-meta-row"><span class="k">Tổng chunks</span><span class="v">78</span></div>
+        <div class="score-meta-row"><span class="k">Avg length</span><span class="v">244.5 chars</span></div>
+        <div class="score-meta-row"><span class="k">Top-1 hits</span><span class="v" style="color:var(--green)">2 câu ✓</span></div>
+        <div class="score-meta-row"><span class="k">Failures</span><span class="v" style="color:var(--red)">2 câu ✗</span></div>
+      </div>
+    </div>
+  </div>
+  <div class="insight">💡 <strong>Phát hiện quan trọng:</strong> Đánh giá theo <strong>doc_id</strong> tạo ảo tưởng 4–5/5 đúng. Chỉ khi chấm ở cấp <strong>Chunk Content Evidence</strong>, SentenceChunker mới lộ điểm yếu (5/10 vs 8/10 của Recursive).</div>
+</section>
+
+<!-- ══ BENCHMARK TABLE ══ -->
+<section id="benchmark">
+  <div class="section-title"><span>📋</span> Chi Tiết 5 Câu Benchmark</div>
+  <div class="section-desc">Kết quả truy xuất của từng chiến lược. Click tab để xem chi tiết từng strategy.</div>
+  <div class="tab-group">
+    <button class="tab-btn active-recursive" onclick="switchTab('recursive',this)">🔵 Recursive</button>
+    <button class="tab-btn" onclick="switchTab('fixed',this)">🟠 FixedSize</button>
+    <button class="tab-btn" onclick="switchTab('sentence',this)">🟣 Sentence</button>
+  </div>
+  <div id="tab-recursive" class="tab-panel active">
+    <div class="table-wrap"><table class="bench-table"><thead><tr><th>#</th><th>Câu hỏi</th><th>Điểm</th><th>Top-1 Doc</th><th>Cosine</th><th>Trạng thái</th></tr></thead><tbody>
+      <tr><td>Q1</td><td style="max-width:300px;font-size:.82rem">Sinh viên và CB-GV được mượn bao nhiêu giáo trình?</td><td><span class="score-pill s0">0/2</span></td><td><span class="doc-tag">phong-doc-cs2</span></td><td style="font-family:'JetBrains Mono';color:var(--text-muted)">0.7434</td><td><span class="rank-badge fail">✗ Thiếu bằng chứng</span></td></tr>
+      <tr><td>Q2</td><td style="max-width:300px;font-size:.82rem">Trả sách trễ hạn phạt bao nhiêu? Khi nào khóa thẻ?</td><td><span class="score-pill s2">2/2</span></td><td><span class="doc-tag">phong-muon-cs1</span></td><td style="font-family:'JetBrains Mono';color:var(--green)">0.6773</td><td><span class="rank-badge top1">✓ Top-1</span></td></tr>
+      <tr><td>Q3</td><td style="max-width:300px;font-size:.82rem">Phòng Hàn Quốc mang đồ gì vào kho ghi chép?</td><td><span class="score-pill s2">2/2</span></td><td><span class="doc-tag">phong-doc-han-quoc</span></td><td style="font-family:'JetBrains Mono';color:var(--green)">0.6877</td><td><span class="rank-badge top1">✓ Top-1</span></td></tr>
+      <tr><td>Q4</td><td style="max-width:300px;font-size:.82rem">Phòng thảo luận nhóm tối đa bao nhiêu người?</td><td><span class="score-pill s2">2/2</span></td><td><span class="doc-tag">phong-thao-luan-nhom</span></td><td style="font-family:'JetBrains Mono';color:var(--green)">0.7422</td><td><span class="rank-badge top1">✓ Top-1</span></td></tr>
+      <tr><td>Q5</td><td style="max-width:300px;font-size:.82rem">Mất tài liệu không còn bán, phạt thế nào?</td><td><span class="score-pill s2">2/2</span></td><td><span class="doc-tag">noi-quy-chung</span></td><td style="font-family:'JetBrains Mono';color:var(--green)">0.7870</td><td><span class="rank-badge top1">✓ Top-1</span></td></tr>
+    </tbody></table></div>
+  </div>
+  <div id="tab-fixed" class="tab-panel">
+    <div class="table-wrap"><table class="bench-table"><thead><tr><th>#</th><th>Câu hỏi</th><th>Điểm</th><th>Top-1 Doc</th><th>Cosine</th><th>Trạng thái</th></tr></thead><tbody>
+      <tr><td>Q1</td><td style="max-width:300px;font-size:.82rem">Sinh viên và CB-GV được mượn bao nhiêu giáo trình?</td><td><span class="score-pill s0">0/2</span></td><td><span class="doc-tag">phong-doc-han-quoc</span></td><td style="font-family:'JetBrains Mono';color:var(--text-muted)">0.7256</td><td><span class="rank-badge fail">✗ Thiếu bằng chứng</span></td></tr>
+      <tr><td>Q2</td><td style="max-width:300px;font-size:.82rem">Trả sách trễ hạn phạt bao nhiêu? Khi nào khóa thẻ?</td><td><span class="score-pill s2">2/2</span></td><td><span class="doc-tag">phong-muon-cs1</span></td><td style="font-family:'JetBrains Mono';color:var(--green)">0.6462</td><td><span class="rank-badge top1">✓ Top-1</span></td></tr>
+      <tr><td>Q3</td><td style="max-width:300px;font-size:.82rem">Phòng Hàn Quốc mang đồ gì vào kho ghi chép?</td><td><span class="score-pill s2">2/2</span></td><td><span class="doc-tag">phong-doc-han-quoc</span></td><td style="font-family:'JetBrains Mono';color:var(--green)">0.7044</td><td><span class="rank-badge top1">✓ Top-1</span></td></tr>
+      <tr><td>Q4</td><td style="max-width:300px;font-size:.82rem">Phòng thảo luận nhóm tối đa bao nhiêu người?</td><td><span class="score-pill s2">2/2</span></td><td><span class="doc-tag">phong-thao-luan-nhom</span></td><td style="font-family:'JetBrains Mono';color:var(--green)">0.7398</td><td><span class="rank-badge top1">✓ Top-1</span></td></tr>
+      <tr><td>Q5</td><td style="max-width:300px;font-size:.82rem">Mất tài liệu không còn bán, phạt thế nào?</td><td><span class="score-pill s1">1/2</span></td><td><span class="doc-tag">noi-quy-chung</span></td><td style="font-family:'JetBrains Mono';color:var(--yellow)">0.7552</td><td><span class="rank-badge top2">~ Top-2 (bằng chứng)</span></td></tr>
+    </tbody></table></div>
+  </div>
+  <div id="tab-sentence" class="tab-panel">
+    <div class="table-wrap"><table class="bench-table"><thead><tr><th>#</th><th>Câu hỏi</th><th>Điểm</th><th>Top-1 Doc</th><th>Cosine</th><th>Trạng thái</th></tr></thead><tbody>
+      <tr><td>Q1</td><td style="max-width:300px;font-size:.82rem">Sinh viên và CB-GV được mượn bao nhiêu giáo trình?</td><td><span class="score-pill s0">0/2</span></td><td><span class="doc-tag">phong-doc-cs2</span></td><td style="font-family:'JetBrains Mono';color:var(--text-muted)">0.7338</td><td><span class="rank-badge fail">✗ Thiếu bằng chứng</span></td></tr>
+      <tr><td>Q2</td><td style="max-width:300px;font-size:.82rem">Trả sách trễ hạn phạt bao nhiêu? Khi nào khóa thẻ?</td><td><span class="score-pill s2">2/2</span></td><td><span class="doc-tag">phong-muon-cs1</span></td><td style="font-family:'JetBrains Mono';color:var(--green)">0.6524</td><td><span class="rank-badge top1">✓ Top-1</span></td></tr>
+      <tr><td>Q3</td><td style="max-width:300px;font-size:.82rem">Phòng Hàn Quốc mang đồ gì vào kho ghi chép?</td><td><span class="score-pill s0">0/2</span></td><td><span class="doc-tag">phong-doc-han-quoc</span></td><td style="font-family:'JetBrains Mono';color:var(--text-muted)">0.6773</td><td><span class="rank-badge fail">✗ Đúng file, sai chunk</span></td></tr>
+      <tr><td>Q4</td><td style="max-width:300px;font-size:.82rem">Phòng thảo luận nhóm tối đa bao nhiêu người?</td><td><span class="score-pill s1">1/2</span></td><td><span class="doc-tag">phong-thao-luan-nhom</span></td><td style="font-family:'JetBrains Mono';color:var(--yellow)">0.7866</td><td><span class="rank-badge top2">~ Bằng chứng ở Top-2</span></td></tr>
+      <tr><td>Q5</td><td style="max-width:300px;font-size:.82rem">Mất tài liệu không còn bán, phạt thế nào?</td><td><span class="score-pill s2">2/2</span></td><td><span class="doc-tag">noi-quy-chung</span></td><td style="font-family:'JetBrains Mono';color:var(--green)">0.7394</td><td><span class="rank-badge top1">✓ Top-1</span></td></tr>
+    </tbody></table></div>
+  </div>
+</section>
+
+<!-- ══ TOP-3 LIVE EXPLORER ══ -->
+<section id="top3">
+  <div class="section-title"><span>🔬</span> Top-3 Live Explorer</div>
+  <div class="section-desc">Chọn câu hỏi để truy xuất Top-3 chunk thực tế từ 3 chiến lược. Yêu cầu chạy <code>server.py</code> trên port 5500.</div>
+
+  <!-- Toolbar: server status + strategy + filter -->
+  <div class="qe-toolbar">
+    <div class="server-status">
+      <div class="status-dot checking" id="statusDot"></div>
+      <span id="statusText">Đang kiểm tra server...</span>
+    </div>
+    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+      <div class="strat-selector">
+        <button class="strat-btn active" data-strat="recursive" onclick="setStrat(this)">🔵 Recursive</button>
+        <button class="strat-btn" data-strat="fixed"     onclick="setStrat(this)">🟠 Fixed</button>
+        <button class="strat-btn" data-strat="sentence"  onclick="setStrat(this)">🟣 Sentence</button>
+        <button class="strat-btn" data-strat="all"       onclick="setStrat(this)">⚡ Tất cả</button>
+      </div>
+      <div class="filter-toggle" id="filterToggle" onclick="toggleFilter()">🏷️ Filter: audience=student</div>
+    </div>
+  </div>
+
+  <!-- Query buttons -->
+  <div class="qe-query-buttons" id="qeButtons"></div>
+
+  <!-- Current query display -->
+  <div class="qe-current-query" id="currentQuery"></div>
+
+  <!-- Loading -->
+  <div class="qe-loading" id="qeLoading">
+    <div class="spinner"></div>
+    <div>Đang truy xuất từ vector store...</div>
+  </div>
+
+  <!-- Results grid -->
+  <div class="qe-results-grid" id="qeResults">
+    <div class="qe-empty">👆 Chọn một câu hỏi phía trên để xem Top-3 kết quả thực tế</div>
+  </div>
+
+  <div class="insight" style="margin-top:1rem">
+    💡 Để bật Live Query: mở Terminal trong thư mục gốc dự án và chạy
+    <code style="background:var(--bg3);padding:2px 6px;border-radius:4px">.venv\Scripts\python.exe web_demo/server.py</code>.
+    Khi server offline, trang vẫn hiển thị dữ liệu mẫu đã được lưu sẵn.
+  </div>
+</section>
+
+<!-- ══ FILTER DEMO ══ -->
+<section id="filter">
+  <div class="section-title"><span>🔍</span> Demo Metadata Filter A/B</div>
+  <div class="section-desc">Câu hỏi: <em>"Mỗi nhóm sinh viên được đăng ký phòng thảo luận tối đa bao nhiêu người và cần làm các bước nào?"</em></div>
+  <div class="filter-demo-grid">
+    <div class="filter-panel no-filter">
+      <div class="filter-panel-header">❌ Không có Filter</div>
+      <div style="font-size:.78rem;color:var(--text-muted);margin-bottom:.8rem;">Top-3 bị lẫn nhiều phòng khác do từ vựng "đăng ký, phòng" trùng nhau.</div>
+      <div class="chunk-result noise">
+        <div class="chunk-result-header"><span class="rank-badge top1">Top 1</span><span class="doc-tag">noi-quy-chung</span><span style="font-family:'JetBrains Mono';font-size:.78rem;color:var(--text-muted)">audience: all</span></div>
+        <div class="chunk-content">12. Nếu có hành vi vi phạm nội quy, tùy theo mức độ vi phạm sẽ bị xử lý theo quy định…</div>
+      </div>
+      <div class="chunk-result noise">
+        <div class="chunk-result-header"><span class="rank-badge top2">Top 2</span><span class="doc-tag">phong-doc-cs1</span><span style="font-family:'JetBrains Mono';font-size:.78rem;color:var(--text-muted)">audience: all</span></div>
+        <div class="chunk-content">1. Khi vào phòng đọc, bạn đọc phải xuất trình thẻ cán bộ/thẻ sinh viên… Mỗi lượt được mượn 03 tài liệu…</div>
+      </div>
+      <div class="chunk-result noise">
+        <div class="chunk-result-header"><span class="rank-badge top3">Top 3</span><span class="doc-tag">phong-muon-cs2</span><span style="font-family:'JetBrains Mono';font-size:.78rem;color:var(--text-muted)">audience: all</span></div>
+        <div class="chunk-content">Điều kiện mượn: phải có thẻ sinh viên/thẻ thư viện hợp lệ. Thời hạn mượn 30 ngày…</div>
+      </div>
+      <div style="margin-top:.8rem;padding:.6rem;background:rgba(248,81,73,.08);border-radius:6px;font-size:.8rem;color:var(--red);">⚠️ Không có chunk nào thuộc phòng thảo luận! LLM không có ngữ cảnh đúng.</div>
+    </div>
+    <div class="filter-panel with-filter">
+      <div class="filter-panel-header">✅ Có Filter <span class="filter-tag">audience: student</span></div>
+      <div style="font-size:.78rem;color:var(--text-muted);margin-bottom:.8rem;">Pre-filtering loại bỏ 9/10 files TRƯỚC KHI tính Cosine Similarity.</div>
+      <div class="chunk-result highlight">
+        <div class="chunk-result-header"><span class="rank-badge top1">Top 1 ✓</span><span class="doc-tag">phong-thao-luan-nhom</span><span style="font-family:'JetBrains Mono';font-size:.78rem;color:var(--green)">audience: student</span></div>
+        <div class="chunk-content">1. Bạn đọc muốn sử dụng phòng thảo luận nhóm phải thực hiện đầy đủ các bước sau:
+• Bước 1: Điền thông tin vào form đăng ký (quét QR trên cửa phòng)…</div>
+      </div>
+      <div class="chunk-result">
+        <div class="chunk-result-header"><span class="rank-badge top2">Top 2</span><span class="doc-tag">phong-thao-luan-nhom</span><span style="font-family:'JetBrains Mono';font-size:.78rem;color:var(--text-muted)">audience: student</span></div>
+        <div class="chunk-content">2. Mỗi nhóm thảo luận tối đa 10 sinh viên. 3. Buổi thảo luận phải diễn ra nghiêm túc…</div>
+      </div>
+      <div style="margin-top:.8rem;padding:.6rem;background:rgba(63,185,80,.08);border-radius:6px;font-size:.8rem;color:var(--green);">✓ Top-1 chứa đúng quy trình đăng ký 3 bước! LLM trả lời chính xác 100%.</div>
+    </div>
+  </div>
+  <div class="insight">💡 <strong>Kết luận Filter:</strong> Pre-filtering thu hẹp không gian tìm kiếm <em>trước khi</em> tính Cosine Similarity. Đánh đổi: nếu gán nhãn sai thì Recall = 0 — cần fallback <code>audience=all</code>.</div>
+</section>
+
+<!-- ══ CHUNK VISUALIZER ══ -->
+<section id="visualizer">
+  <div class="section-title"><span>🧩</span> Visualizer: Phân Bố Chunk</div>
+  <div class="section-desc">Thay đổi chiến lược và chunk_size để thấy sự phân bố thay đổi thế nào.</div>
+  <div class="viz-controls">
+    <label>Chiến lược:</label>
+    <select id="viz-strategy" onchange="updateViz()">
+      <option value="recursive">RecursiveChunker</option>
+      <option value="fixed">FixedSizeChunker</option>
+      <option value="sentence">SentenceChunker</option>
+    </select>
+    <label>Chunk size: <strong id="sizeLabel">400</strong></label>
+    <input type="range" id="viz-size" min="100" max="800" value="400" step="50" oninput="updateViz()" />
+  </div>
+  <div class="viz-metrics" id="viz-metrics">
+    <div class="viz-metric"><span class="k">Chiến lược:</span><span class="v" id="vm-strategy">Recursive</span></div>
+    <div class="viz-metric"><span class="k">Chunk size:</span><span class="v" id="vm-size">400</span></div>
+    <div class="viz-metric"><span class="k">Số chunks:</span><span class="v" id="vm-count">57</span></div>
+    <div class="viz-metric"><span class="k">Avg length:</span><span class="v" id="vm-avg">291.1</span></div>
+    <div class="viz-metric"><span class="k">Overlap:</span><span class="v" id="vm-overlap">0</span></div>
+  </div>
+  <div class="chunks-display" id="chunks-display"></div>
+  <div class="insight" style="margin-top:1rem">💡 FixedSize = block đồng đều nhưng cứng nhắc. Recursive = linh hoạt theo đoạn văn. Sentence = nhiều block nhỏ do mỗi câu riêng một chunk.</div>
+</section>
+
+<!-- ══ METADATA SCHEMA ══ -->
+<section id="schema">
+  <div class="section-title"><span>🏷️</span> Metadata Schema</div>
+  <div class="section-desc">5 trường bắt buộc + 3 trường mở rộng cho corpus thư viện USSH.</div>
+  <div class="schema-grid">
+    <div class="schema-card"><div class="schema-field">doc_id</div><div class="schema-type">string</div><div class="schema-desc">Định danh duy nhất, dùng truy vết nguồn gốc.</div><div class="schema-example">"noi-quy-chung"</div></div>
+    <div class="schema-card"><div class="schema-field">audience</div><div class="schema-type">string — ⭐ K3</div><div class="schema-desc">Đối tượng áp dụng. Lọc chính xác tránh nhầm quy định nhóm khác.</div><div class="schema-example">"student" | "all"</div></div>
+    <div class="schema-card"><div class="schema-field">source_url</div><div class="schema-type">string — ⭐ K3</div><div class="schema-desc">URL nguồn gốc, đảm bảo minh bạch và kiểm chứng.</div><div class="schema-example">"local_pdf/11717.pdf"</div></div>
+    <div class="schema-card"><div class="schema-field">retrieved_at</div><div class="schema-type">date — ⭐ K3</div><div class="schema-desc">Ngày lấy dữ liệu để biết tài liệu có thể đã lỗi thời.</div><div class="schema-example">"2026-08-03"</div></div>
+    <div class="schema-card"><div class="schema-field">document_version</div><div class="schema-type">string — ⭐ K3</div><div class="schema-desc">Phiên bản ban hành để phân biệt nhiều phiên bản cập nhật.</div><div class="schema-example">"2026.1"</div></div>
+    <div class="schema-card"><div class="schema-field">department</div><div class="schema-type">string</div><div class="schema-desc">Phòng ban sở hữu. Hữu ích khi mở rộng sang đa phòng ban.</div><div class="schema-example">"ussh-library"</div></div>
+    <div class="schema-card"><div class="schema-field">category</div><div class="schema-type">string</div><div class="schema-desc">Phân loại tài liệu (nội quy, biểu mẫu) để ưu tiên đúng loại.</div><div class="schema-example">"regulations"</div></div>
+    <div class="schema-card"><div class="schema-field">language</div><div class="schema-type">string</div><div class="schema-desc">Ngôn ngữ tài liệu cho hệ thống đa ngôn ngữ.</div><div class="schema-example">"vi"</div></div>
+  </div>
+</section>
+
+</main>
+
+<footer>
+  <div>RAG Demo — Lab 7 | Nhóm <strong>404NotFound</strong> | Thành viên: Đoàn Vũ Hoàng</div>
+  <div style="margin-top:4px">Corpus: Nội quy Thư viện ĐH KHXH&amp;NV · Backend: <code>paraphrase-multilingual-MiniLM-L12-v2</code> · <a href="http://localhost:5500/api/status" target="_blank">API Status</a></div>
+</footer>
+
+<script>
+// ── Tab switcher ──
+function switchTab(name, btn) {
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => { b.className = 'tab-btn'; });
+  document.getElementById('tab-' + name).classList.add('active');
+  btn.classList.add('active-' + name);
+}
+
+// ── Chunk Visualizer ──
+const vizData = {
+  recursive: { name:'Recursive', sizes:[400,310,280,390,245,330,188,400,356,278,400,295,320,400,210,340,390,260,400,175,302], avgLen:291.1, overlap:0 },
+  fixed:     { name:'FixedSize', sizes:Array(18).fill(400).map((v,i)=>i===17?320:v), avgLen:388.3, overlap:50 },
+  sentence:  { name:'Sentence',  sizes:[180,220,195,210,240,170,200,165,230,215,190,245,180,220,255,200,175,210,195,235,250,185,200,220,195], avgLen:244.5, overlap:0 },
+};
+function updateViz() {
+  const s = document.getElementById('viz-strategy').value;
+  const sz = parseInt(document.getElementById('viz-size').value);
+  document.getElementById('sizeLabel').textContent = sz;
+  const d = vizData[s]; const sc = sz/400;
+  const sizes = d.sizes.map(x=>Math.round(x*sc));
+  document.getElementById('vm-strategy').textContent = d.name;
+  document.getElementById('vm-size').textContent = sz;
+  document.getElementById('vm-count').textContent = sizes.length;
+  document.getElementById('vm-avg').textContent = Math.round(d.avgLen*sc);
+  document.getElementById('vm-overlap').textContent = d.overlap;
+  const display = document.getElementById('chunks-display');
+  display.innerHTML = '';
+  sizes.forEach((sz2,i)=>{
+    const b = document.createElement('div');
+    b.className = 'chunk-block '+s;
+    b.style.width = Math.max(40,Math.min(sz2/5,140))+'px';
+    b.title = `Chunk ${i+1}: ~${sz2} chars`;
+    b.textContent = `C${i+1}\n~${sz2}`;
+    display.appendChild(b);
+  });
+}
+updateViz();
+window.addEventListener('load',()=>{
+  document.querySelectorAll('.progress-bar-fill').forEach(el=>{
+    const w=el.style.width; el.style.width='0';
+    setTimeout(()=>{el.style.width=w;},200);
+  });
+});
+
+// ── TOP-3 LIVE EXPLORER ──
+const QUERIES = [
+  { label:'Q1: Số cuốn sách mượn được',       text:'Sinh viên và cán bộ giảng viên được mượn bao nhiêu quyển sách giáo trình và trong thời gian bao lâu?' },
+  { label:'Q2: Phạt trễ hạn & khóa thẻ',      text:'Nếu tôi trả sách trễ hạn thì sẽ bị phạt bao nhiêu tiền một ngày và khi nào thì bị khóa thẻ?' },
+  { label:'Q3: Đồ dùng phòng Hàn Quốc',        text:'Phòng đọc tham khảo Hàn Quốc (Window on Korea) cho phép mang đồ dùng gì vào kho để ghi chép?' },
+  { label:'Q4: Đăng ký phòng thảo luận ★filter', text:'Mỗi nhóm sinh viên được đăng ký phòng thảo luận tối đa bao nhiêu người và cần làm các bước nào?' },
+  { label:'Q5: Bồi thường mất tài liệu',       text:'Khi làm mất tài liệu, nếu trên thị trường không còn bán và thư viện cũng không còn bản gốc thì tôi phải nộp phạt như thế nào?' },
+];
+
+const STRAT_LABEL = { recursive:'🔵 RecursiveChunker', fixed:'🟠 FixedSizeChunker', sentence:'🟣 SentenceChunker' };
+const STRAT_CLS   = { recursive:'recursive', fixed:'fixed', sentence:'sentence' };
+const ALL_STRATS  = ['recursive','fixed','sentence'];
+
+let currentStrat = 'recursive';
+let useFilter    = false;
+let serverOnline = false;
+let activeQIdx   = -1;
+
+// Build query buttons
+const btnWrap = document.getElementById('qeButtons');
+QUERIES.forEach((q,i)=>{
+  const btn = document.createElement('button');
+  btn.className = 'qe-btn';
+  btn.textContent = q.label;
+  btn.title = q.text;
+  btn.onclick = () => runQuery(i);
+  btnWrap.appendChild(btn);
+});
+
+function setStrat(btn) {
+  document.querySelectorAll('.strat-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  currentStrat = btn.dataset.strat;
+  if (activeQIdx >= 0) runQuery(activeQIdx);
+}
+
+function toggleFilter() {
+  useFilter = !useFilter;
+  document.getElementById('filterToggle').classList.toggle('active', useFilter);
+  if (activeQIdx >= 0) runQuery(activeQIdx);
+}
+
+// Server status check
+async function checkServer() {
+  const dot = document.getElementById('statusDot');
+  const txt = document.getElementById('statusText');
+  try {
+    const r = await fetch('http://localhost:5500/api/status', {signal: AbortSignal.timeout(2000)});
+    if (r.ok) {
+      const data = await r.json();
+      serverOnline = true;
+      dot.className = 'status-dot online';
+      txt.textContent = `🟢 Server online — Recursive: ${data.chunks?.recursive ?? '?'} chunks`;
+    } else { throw new Error('bad status'); }
+  } catch {
+    serverOnline = false;
+    dot.className = 'status-dot offline';
+    txt.innerHTML = '🔴 Server offline — hiển thị dữ liệu mẫu · <a href="http://localhost:5500" style="color:var(--accent)" target="_blank">kết nối lại</a>';
+  }
+}
+checkServer();
+setInterval(checkServer, 10000);
+
+// Fallback static data (from result_bench.md)
+const STATIC_TOP3 = {
+  recursive: [
+    [{doc:'phong-doc-cs2',score:0.7434,content:'• Mỗi lượt được mượn 03 tài liệu đối với Sinh viên, Học viên sau đại học và 05 tài liệu đối với Cán bộ - Giảng viên.\n• Đặt sách bằng cách điền phiếu yêu cầu nộp cho chuyên viên thư viện…',meta:{doc_id:'phong-doc-cs2',audience:'all',department:'ussh-library',category:'regulations',language:'vi',source_url:'local_pdf/11717.pdf',retrieved_at:'2026-08-03',document_version:'2026.1'}},{doc:'phong-doc-cs1',score:0.7376,content:'• Mỗi lượt được mượn 03 tài liệu đối với Sinh viên, Học viên sau đại học và 05 tài liệu đối với Cán bộ - Giảng viên.',meta:{doc_id:'phong-doc-cs1',audience:'all',department:'ussh-library',category:'regulations',language:'vi',source_url:'local_pdf/11717.pdf',retrieved_at:'2026-08-03',document_version:'2026.1'}},{doc:'phong-doc-han-quoc',score:0.7158,content:'3. Trình tự mượn: • Mỗi lượt được mượn 03 tài liệu đối với Sinh viên…',meta:{doc_id:'phong-doc-han-quoc',audience:'all',department:'ussh-library',category:'regulations',language:'vi',source_url:'local_pdf/11717.pdf',retrieved_at:'2026-08-03',document_version:'2026.1'}}],
+    [{doc:'phong-muon-cs1',score:0.6773,content:'5. Nếu trả tài liệu trễ hạn, bạn đọc phải nộp phạt 2.000 đ/ngày (nếu tái phạm 02 lần trở lên bạn đọc sẽ bị khóa giao dịch sử dụng thư viện từ 03 đến 06 tháng).',meta:{doc_id:'phong-muon-cs1',audience:'all',department:'ussh-library',category:'regulations',language:'vi',source_url:'local_pdf/11717.pdf',retrieved_at:'2026-08-03',document_version:'2026.1'}},{doc:'noi-quy-chung',score:0.6272,content:'6. Cần trả tài liệu đúng thời gian quy định…',meta:{doc_id:'noi-quy-chung',audience:'all',department:'ussh-library',category:'regulations',language:'vi',source_url:'local_pdf/11717.pdf',retrieved_at:'2026-08-03',document_version:'2026.1'}},{doc:'noi-quy-chung',score:0.5801,content:'- Nếu trên thị trường và thư viện đều không còn tài liệu đã mất thì bạn đọc phải nộp phạt gấp 03 lần giá trị.',meta:{doc_id:'noi-quy-chung',audience:'all',department:'ussh-library',category:'regulations',language:'vi',source_url:'local_pdf/11717.pdf',retrieved_at:'2026-08-03',document_version:'2026.1'}}],
+    [{doc:'phong-doc-han-quoc',score:0.6877,content:'I. Nội quy sử dụng tài liệu. 1. Khi vào phòng đọc tham khảo Hàn Quốc… chỉ được mang 01 quyển vở/giấy tập để ghi chép (không sử dụng giấy khổ A4, A3...).',meta:{doc_id:'phong-doc-han-quoc',audience:'all',department:'ussh-library',category:'regulations',language:'vi',source_url:'local_pdf/11717.pdf',retrieved_at:'2026-08-03',document_version:'2026.1'}},{doc:'phong-doc-han-quoc',score:0.6218,content:'II. Nội quy sử dụng máy tính...',meta:{doc_id:'phong-doc-han-quoc',audience:'all',department:'ussh-library',category:'regulations',language:'vi',source_url:'local_pdf/11717.pdf',retrieved_at:'2026-08-03',document_version:'2026.1'}},{doc:'phong-doc-han-quoc',score:0.5873,content:'# NỘI QUY PHÒNG ĐỌC THAM KHẢO HÀN QUỐC (WINDOW ON KOREA)',meta:{doc_id:'phong-doc-han-quoc',audience:'all',department:'ussh-library',category:'regulations',language:'vi',source_url:'local_pdf/11717.pdf',retrieved_at:'2026-08-03',document_version:'2026.1'}}],
+    [{doc:'phong-thao-luan-nhom',score:0.7422,content:'1. Bạn đọc muốn sử dụng phòng thảo luận nhóm phải thực hiện đầy đủ các bước sau:\n• Bước 1: Điền thông tin vào form đăng ký (quét QR trên cửa phòng).\n• Bước 2: Nhắn tin Zalo cho cán bộ thư viện xác nhận.\n• Bước 3: Gặp trực tiếp cán bộ để nhận chìa khóa phòng.\n2. Mỗi nhóm thảo luận tối đa 10 sinh viên.',meta:{doc_id:'phong-thao-luan-nhom',audience:'student',department:'ussh-library',category:'regulations',language:'vi',source_url:'local_pdf/11717.pdf',retrieved_at:'2026-08-03',document_version:'2026.1'}},{doc:'phong-thao-luan-nhom',score:0.4475,content:'4. Giữ gìn, bảo quản tài sản trong phòng…',meta:{doc_id:'phong-thao-luan-nhom',audience:'student',department:'ussh-library',category:'regulations',language:'vi',source_url:'local_pdf/11717.pdf',retrieved_at:'2026-08-03',document_version:'2026.1'}},{doc:'phong-thao-luan-nhom',score:0.1091,content:'# NỘI QUY PHÒNG THẢO LUẬN NHÓM',meta:{doc_id:'phong-thao-luan-nhom',audience:'student',department:'ussh-library',category:'regulations',language:'vi',source_url:'local_pdf/11717.pdf',retrieved_at:'2026-08-03',document_version:'2026.1'}}],
+    [{doc:'noi-quy-chung',score:0.7870,content:'- Nếu trên thị trường và thư viện đều không còn tài liệu đã mất thì bạn đọc phải nộp phạt số tiền gấp 03 lần giá trị của tài liệu được định giá tại thời điểm nộp phạt.',meta:{doc_id:'noi-quy-chung',audience:'all',department:'ussh-library',category:'regulations',language:'vi',source_url:'local_pdf/11717.pdf',retrieved_at:'2026-08-03',document_version:'2026.1'}},{doc:'noi-quy-chung',score:0.7646,content:'- Nếu không còn tài liệu mất trên thị trường, nhưng thư viện có bản gốc, bạn đọc phải chi trả…',meta:{doc_id:'noi-quy-chung',audience:'all',department:'ussh-library',category:'regulations',language:'vi',source_url:'local_pdf/11717.pdf',retrieved_at:'2026-08-03',document_version:'2026.1'}},{doc:'noi-quy-chung',score:0.7159,content:'- Trong trường hợp nếu bạn đọc không tìm được tài liệu mất trên thị trường phát hành, bạn đọc phải báo ngay cho chuyên viên thư viện để xử lý…',meta:{doc_id:'noi-quy-chung',audience:'all',department:'ussh-library',category:'regulations',language:'vi',source_url:'local_pdf/11717.pdf',retrieved_at:'2026-08-03',document_version:'2026.1'}}],
+  ],
+};
+// Copy same fallback for fixed/sentence (simplified)
+STATIC_TOP3.fixed = STATIC_TOP3.recursive;
+STATIC_TOP3.sentence = STATIC_TOP3.recursive;
+
+async function fetchStrategy(query, strat) {
+  const body = { query, strategy: strat };
+  if (useFilter && strat === 'recursive') body.filter = { audience: 'student' };
+  const resp = await fetch('http://localhost:5500/api/search', {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify(body),
+    signal: AbortSignal.timeout(8000),
+  });
+  if (!resp.ok) throw new Error('API error');
+  return await resp.json();
+}
+
+async function runQuery(qIdx) {
+  activeQIdx = qIdx;
+  // Update buttons
+  document.querySelectorAll('.qe-btn').forEach((b,i)=>b.classList.toggle('active', i===qIdx));
+  // Show current query
+  const qDiv = document.getElementById('currentQuery');
+  qDiv.innerHTML = `<strong>Câu hỏi:</strong> ${QUERIES[qIdx].text}`;
+  qDiv.classList.add('show');
+
+  const grid = document.getElementById('qeResults');
+  const loading = document.getElementById('qeLoading');
+  grid.innerHTML = '';
+  loading.style.display = 'block';
+
+  const strategies = currentStrat === 'all' ? ALL_STRATS : [currentStrat];
+  const results = {};
+
+  if (serverOnline) {
+    try {
+      await Promise.all(strategies.map(async strat => {
+        results[strat] = await fetchStrategy(QUERIES[qIdx].text, strat);
+      }));
+    } catch {
+      serverOnline = false;
+      document.getElementById('statusDot').className = 'status-dot offline';
+      document.getElementById('statusText').textContent = '🔴 Server ngắt kết nối — dữ liệu mẫu';
+      strategies.forEach(s => { results[s] = STATIC_TOP3[s]?.[qIdx] ?? []; });
+    }
+  } else {
+    strategies.forEach(s => { results[s] = STATIC_TOP3[s]?.[qIdx] ?? []; });
+  }
+
+  loading.style.display = 'none';
+  grid.style.gridTemplateColumns = strategies.length === 1 ? '1fr' : 'repeat('+strategies.length+',1fr)';
+
+  strategies.forEach(strat => {
+    const chunks = results[strat] || [];
+    const col = document.createElement('div');
+    col.className = 'qe-col';
+
+    const hdr = document.createElement('div');
+    hdr.className = `qe-col-header ${STRAT_CLS[strat]}`;
+    hdr.innerHTML = `<span class="qe-col-title ${STRAT_CLS[strat]}">${STRAT_LABEL[strat]}</span><span class="doc-tag" style="font-size:.72rem">${chunks.length} kết quả</span>`;
+    col.appendChild(hdr);
+
+    if (!chunks.length) {
+      const empty = document.createElement('div');
+      empty.style = 'padding:1.5rem;text-align:center;color:var(--text-muted);font-size:.85rem';
+      empty.textContent = 'Không có kết quả';
+      col.appendChild(empty);
+    } else {
+      chunks.forEach((c, i) => {
+        const meta = c.metadata || {};
+        const item = document.createElement('div');
+        item.className = 'qe-item';
+        const rankLabel = ['Top 1','Top 2','Top 3'][i] || `Top ${i+1}`;
+        const rankCls   = ['top1','top2','top3'][i]    || 'top3';
+        const pct = Math.min(Math.round((c.score||0) * 100), 100);
+        const audienceBadge = meta.audience === 'student'
+          ? '<span style="font-size:.7rem;background:rgba(63,185,80,.15);color:var(--green);padding:2px 6px;border-radius:8px;font-weight:600">👤 student</span>'
+          : '<span style="font-size:.7rem;background:var(--bg3);color:var(--text-muted);padding:2px 6px;border-radius:8px">👥 all</span>';
+        item.innerHTML = `
+          <div class="qe-item-header">
+            <span class="rank-badge ${rankCls}">${rankLabel}</span>
+            <span class="doc-tag">${c.id_chunk || meta.doc_id || c.doc || '—'}</span>
+            ${audienceBadge}
+          </div>
+          <div class="qe-score-bar-wrap">
+            <div class="qe-score-label"><span>Cosine Score</span><span style="font-family:'JetBrains Mono';color:var(--text)">${(c.score||0).toFixed(4)}</span></div>
+            <div class="qe-score-bar"><div class="qe-score-fill ${STRAT_CLS[strat]}" style="width:${pct}%"></div></div>
+          </div>
+          <div class="qe-content">${(c.content||'').replace(/</g,'&lt;').replace(/>/g,'&gt;')}</div>
+          <div class="qe-meta-grid">
+            <div class="qe-meta-item"><span class="qe-meta-key">doc_id</span><span class="qe-meta-val">${meta.doc_id||'—'}</span></div>
+            <div class="qe-meta-item"><span class="qe-meta-key">audience</span><span class="qe-meta-val">${meta.audience||'—'}</span></div>
+            <div class="qe-meta-item"><span class="qe-meta-key">department</span><span class="qe-meta-val">${meta.department||'—'}</span></div>
+            <div class="qe-meta-item"><span class="qe-meta-key">category</span><span class="qe-meta-val">${meta.category||'—'}</span></div>
+            <div class="qe-meta-item"><span class="qe-meta-key">language</span><span class="qe-meta-val">${meta.language||'—'}</span></div>
+            <div class="qe-meta-item"><span class="qe-meta-key">retrieved_at</span><span class="qe-meta-val">${meta.retrieved_at||'—'}</span></div>
+            <div class="qe-meta-item span2"><span class="qe-meta-key">document_version</span><span class="qe-meta-val">${meta.document_version||'—'}</span></div>
+            <div class="qe-meta-item span2"><span class="qe-meta-key">source_url</span><span class="qe-meta-val">${meta.source_url||'—'}</span></div>
+          </div>
+        `;
+        col.appendChild(item);
+      });
+    }
+    grid.appendChild(col);
+  });
+}
+</script>
+</body>
+</html>
